@@ -1,10 +1,12 @@
 from typing import Optional
-from pydantic import BaseModel
+from bson import ObjectId
+from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from pytz import timezone
 
-
+    
 class User(BaseModel):
+    id: str
     username: str
     email: str
     password: str

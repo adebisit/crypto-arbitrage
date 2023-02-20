@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends, Request
 from app.models.user import User, UserIn, UserOut
 from mongodb import db
 import bcrypt
@@ -9,7 +9,7 @@ from pytz import timezone
 import jwt
 from config import settings
 from middleware.authMiddleware import authenticate_request
-from tasks import my_task
+from tasks.tasks import my_task
 
 
 router = APIRouter()
@@ -50,6 +50,7 @@ async def register(username: str, email: str, password: str):
         activation_token=activation_token
     )
     db.users.insert_one(dict(user)).inserted_id
+    # BackgroundTasks.add_task(utils.send_email, "adebisijosephh@gmail.com", activation_token)
     # utils.send_email("adebisijosephh@gmail.com", activation_token)
     
     return {
@@ -75,6 +76,7 @@ async def activate(token: str):
     return {
         "message": "Activation Succesful. You can loggin now."
     }
+
 
 @router.get("/", dependencies=[Depends(authenticate_request)])
 async def get_me(request: Request):

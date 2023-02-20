@@ -3,7 +3,7 @@ import jwt
 from config import settings
 from mongodb import db
 from app.models.user import User
-
+from pprint import pprint
 
 
 async def authenticate_request(request: Request):
@@ -19,5 +19,5 @@ async def authenticate_request(request: Request):
     user_db = db.users.find_one({"email": payload["email"]})
     if not user_db:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
-    user = User(**user_db)
+    user = User(**user_db, id=str(user_db["_id"]))
     request.state.user = user
