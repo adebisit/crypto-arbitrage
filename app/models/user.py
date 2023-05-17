@@ -13,8 +13,11 @@ class User(BaseModel):
     activation_token: str = None
     token_expires_at: datetime = datetime.utcnow() + timedelta(hours=1)
     is_active: bool = False
+    archived: bool = False
     created_at: datetime = datetime.utcnow()
     activated_at: datetime = None
+    reset_password_token: str = None
+    reset_password_token_expires_at: datetime = None
 
     class Config:
         orm_mode = True

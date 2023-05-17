@@ -1,0 +1,44 @@
+{% extends 'base.html' %} {% block content %}
+
+<h2>Email Confirmation</h2>
+<p>Hi {{username}},</p>
+<p>
+  You requested a password reset. Please click the button below to reset password.
+</p>
+<table
+  role="presentation"
+  border="0"
+  cellpadding="0"
+  cellspacing="0"
+  class="btn btn-primary"
+>
+  <tbody>
+    <tr>
+      <td align="left">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+          <tbody>
+            <tr>
+              <td>
+                <a href="{{reset_url}}" target="_blank">Verify email address</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+  Alternatively, you can copy and paste the url below in a new tab in your browser
+</p>
+<a href="{{reset_url}}">{{reset_url}}</a>
+
+<br><br>
+<p>If you didnt request a password reset, please ignore the mail</p>
+
+
+<br>
+<div>Support Team,</div>
+<div>Conarbs</div>
+{% endblock %}

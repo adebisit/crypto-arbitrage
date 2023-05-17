@@ -5,12 +5,11 @@ import bcrypt
 import uuid
 from ..utils import email
 from datetime import datetime, timedelta
-from pytz import timezone
 import jwt
 from config import settings
 from middleware.authMiddleware import authenticate_request
 from tasks.tasks import my_task
-
+from config import settings
 
 
 router = APIRouter()
@@ -51,6 +50,7 @@ async def register(request: Request, userData: UserSignUp, background_tasks: Bac
 def is_token_expired(token_expiration: datetime):
     return datetime.utcnow() > token_expiration
 
+
 @router.post('/activate')
 async def activate(request: Request, background_tasks: BackgroundTasks):
     requestData = await request.json()
@@ -58,13 +58,12 @@ async def activate(request: Request, background_tasks: BackgroundTasks):
 
     user_db = db.users.find_one({"activation_token": token})
     if user_db is None:
-        raise HTTPException(detail='Token is Invalud', status_code=401)
+        raise HTTPException(detail='Activation Token is Invalud', status_code=401)
     user = User(**user_db)
     now = datetime.utcnow()
-    # created_at = timezone("UTC").localize(user.created_at)
 
     if is_token_expired(user.token_expires_at):
-        raise HTTPException(detail='Token has expired', status_code=401)
+        raise HTTPException(detail='Activation Token has expired', status_code=401)
     
     user.is_active = True
     user.activation_token = None
@@ -78,9 +77,7 @@ async def activate(request: Request, background_tasks: BackgroundTasks):
         context={"username": "Josh"},
         receiptents=["adebisijosephh@gmail.com"]
     )
-    return {
-        "message": "Activation Succesful. You can log in now."
-    }
+    return {"message": "Activation Succesful. You can log in now."}
 
 
 @router.post('/login')
@@ -93,9 +90,12 @@ async def login(request: Request):
     if password is None:
         raise HTTPException(detail="Missing required parameters: password", status_code=400)
 
-    print(username)
-    print(password)
-    user_db = db.users.find_one({"$or": [{"username": username}, {"email": username}]})
+    user_db = db.users.find_one({
+        "$and": [
+            {"$or": [{"username": username}, {"email": username}]},
+            {"archived": False}
+        ]
+    })
     if user_db is None:
         raise HTTPException(detail='Username or Password is invalid', status_code=401)
     user = UserIn(**user_db)
@@ -105,14 +105,61 @@ async def login(request: Request):
     if not bcrypt.checkpw(password.encode(), user.password.encode()):
         raise HTTPException(detail='Username or Password is invalid', status_code=401)
     
-    encoded_jwt = jwt.encode(dict(UserOut(**user_db)), settings.JWT_SECRET, algorithm="HS256")
+    encoded_jwt = jwt.encode({
+        "exp":datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+        **dict(UserOut(**user_db))
+    }, settings.JWT_SECRET, algorithm="HS256")
     return {"jwt": encoded_jwt}
 
 
+@router.post('/password-reset')
+async def reset_password(request: Request, background_tasks: BackgroundTasks):
+    data = await request.json()
+    user_db = db.users.find_one({"email": data.get("email")})
+    if user_db is None:
+        raise HTTPException(detail="Account doesnt exist", status_code=404)
+    
+    token = str(uuid.uuid4())
+    user = User(**user_db)
+    user.reset_password_token = token
+    user.reset_password_token_expires_at = datetime.utcnow() + timedelta(hours=1)
+    db.users.update_one({"_id": user_db["_id"]}, {"$set": user.dict()})
+    db.users.update_one({"email": user.email}, {"$set": user.dict()})
+    
+    background_tasks.add_task(
+        email.send_email, 
+        subject="Reset Password",
+        template="reset.html",
+        context={"username": user.username, "reset_url": f"{request.base_url}auth/password-reset/{token}"},
+        receiptents=[user.email]
+    )
+    return {"message": f"Password Reset Token Sent: {token}"}
 
-@router.get("/", dependencies=[Depends(authenticate_request)])
-async def get_me(request: Request, background_tasks: BackgroundTasks):
-    # task = my_task.delay("Taiwo")
-    # print(task)
-    # BackgroundTasks.add_task(email.send_email, "", "", [])
-    return {"message": "Successful"}
+
+@router.post('/password-reset/{token}')
+async def reset_password(request: Request, token: str, background_tasks: BackgroundTasks):
+    data = await request.json()
+    new_password = data.get("new_password")
+    user_db = db.users.find_one({"reset_password_token": token})
+
+    if user_db is None:
+        raise HTTPException(detail="Invalid Token", status_code=400)
+
+    user = User(**user_db)
+    if is_token_expired(user.reset_password_token_expires_at):
+        raise HTTPException(detail='Password Reset Token has expired', status_code=401)
+
+    hashed_password = bcrypt.hashpw(new_password.encode('utf8'), bcrypt.gensalt())
+    user.password = hashed_password.decode()
+    user.reset_password_token = None
+    user.reset_password_token_expires_at = None
+    db.users.update_one({"email": user.email}, {"$set": user.dict()})
+
+    background_tasks.add_task(
+        email.send_email, 
+        subject="Password Reset Succesful",
+        template="reset_sucess.html",
+        context={"username": user.username},
+        receiptents=[user.email]
+    )
+    return {"message": "Password Reset was succesful"}

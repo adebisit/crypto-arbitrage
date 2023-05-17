@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     ATLAS_URI: str
     DB_NAME: str
     JWT_SECRET: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
     MAIL_HOST: str
     MAIL_PORT: int
     MAIL_USERNAME: str
