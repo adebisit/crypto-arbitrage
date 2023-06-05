@@ -1,5 +1,7 @@
 .env
 dump.rdb
+sandbox.py
+sandbox/
 .DS_Store
 venv/
 __pycache__/

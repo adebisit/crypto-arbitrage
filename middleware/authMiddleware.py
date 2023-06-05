@@ -5,6 +5,7 @@ from mongodb import db
 from app.models.user import User
 from pprint import pprint
 from datetime import datetime
+from jwt.exceptions import ExpiredSignatureError
 
 
 
@@ -17,7 +18,9 @@ async def authenticate_request(request: Request):
         payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"], options={"verify_exp": True})
         if ('exp' not in payload) or (datetime.utcnow() > datetime.fromtimestamp(payload['exp'])):
             raise HTTPException(detail="Login Token has expired.", status_code=401)
-    except jwt.PyJWTError:
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="JWT Expired")
+    except jwt.PyJWTError as e:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
     user_db = db.users.find_one({"email": payload["email"]})

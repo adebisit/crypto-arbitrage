@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     MAIL_USERNAME: str
     MAIL_PASSWORD: str
     MAIL_FROM: EmailStr
+    PAYSTACK_SECRET_KEY: str
 
     class Config:
         env_file = ".env"

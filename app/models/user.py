@@ -6,7 +6,7 @@ from pytz import timezone
 
 
 class User(BaseModel):
-    # id: str
+    id: ObjectId = Field(alias="_id")
     username: str
     email: str
     password: str
@@ -21,6 +21,7 @@ class User(BaseModel):
 
     class Config:
         orm_mode = True
+        arbitrary_types_allowed = True
 
 
 class UserLogIn(BaseModel):
