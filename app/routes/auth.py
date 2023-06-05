@@ -33,7 +33,7 @@ async def register(request: Request, userData: UserSignUp, background_tasks: Bac
         password=hashed_password.decode(),
         activation_token=activation_token
     )
-    db.users.insert_one(dict(user)).inserted_id
+    db.users.insert_one(user.dict()).inserted_id
     background_tasks.add_task(
         email.send_email, 
         subject="Confirm your Conarbs Account",
@@ -107,7 +107,7 @@ async def login(request: Request):
     
     encoded_jwt = jwt.encode({
         "exp":datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
-        **dict(UserOut(**user_db))
+        **UserOut(**user_db).dict()
     }, settings.JWT_SECRET, algorithm="HS256")
     return {"jwt": encoded_jwt}
 

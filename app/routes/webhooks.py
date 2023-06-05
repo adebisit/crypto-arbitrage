@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Response
 import json
 from ..models.payment import CardAuthorization, Payment
+from ..models.user import User
 from mongodb import db
 import hmac
 import hashlib
@@ -40,6 +41,13 @@ async def process_payment_webhook(request: Request):
         payment.paid_at = datetime.fromisoformat(data.get("paidAt")[:-1])
         db.payments.update_one({"reference_id": reference}, {"$set": payment.dict()})
 
+        # Get User and update Token
+        user_db = db.users.find_one({"_id": payment.user_id})
+        user = User(**user_db)
+        user.token.available += payment.no_tokens
+        db.users.update_one({"_id": user_db["_id"]}, {"$set": user.dict()})
+
+        # Only do this if user wants to save card or if card isnt saved before.
         card_auth = CardAuthorization(
             user_id = payment.user_id,
             authorization_code = data["authorization"]["authorization_code"],
@@ -51,6 +59,7 @@ async def process_payment_webhook(request: Request):
             exp_year = data["authorization"]["exp_year"]
         )
         db.card_authorizations.insert_one(card_auth.dict())
+        
 
     return Response(status_code=200)
     

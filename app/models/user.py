@@ -5,8 +5,12 @@ from datetime import datetime, timedelta
 from pytz import timezone
 
 
+class Token(BaseModel):
+    available: int = Field(default=0)
+    locked: int = Field(default=0)
+
+
 class User(BaseModel):
-    id: ObjectId = Field(alias="_id")
     username: str
     email: str
     password: str
@@ -18,6 +22,7 @@ class User(BaseModel):
     activated_at: datetime = None
     reset_password_token: str = None
     reset_password_token_expires_at: datetime = None
+    token: Token = Field(default=Token())
 
     class Config:
         orm_mode = True
@@ -45,3 +50,4 @@ class UserIn(BaseModel):
 class UserOut(BaseModel):
     username: str
     email: str
+    token: Token

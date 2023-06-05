@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
+from bson import ObjectId
 from ..utils import payment, token
 from ..models.user import User
 from ..models.payment import Payment, CardAuthorization
@@ -11,7 +12,6 @@ router = APIRouter()
 
 @router.post('/')
 async def add_token(request: Request):
-
     user: User = request.state.user
     data = await request.json()
     amount = data.get("amount")
@@ -26,8 +26,9 @@ async def add_token(request: Request):
             no_tokens= amount
         )
         
+        user_db = db.users.find_one({"email": user.email})
         intialized_payment = Payment(
-            user_id = user.id,
+            user_id = ObjectId(user_db["_id"]),
             token_tier = str(tier),
             token_pricing = pricing,
             no_tokens = amount,
@@ -45,5 +46,10 @@ async def add_token(request: Request):
 
 
 @router.get('/')
+async def get_token_balance(request: Request):
+    return {}
+
+
+@router.post('/lock')
 async def get_token_balance(request: Request):
     return {}
