@@ -69,7 +69,7 @@ async def activate(request: Request, background_tasks: BackgroundTasks):
     user.activation_token = None
     user.activated_at = now
 
-    db.users.update_one({"_id": user_db["_id"]}, {"$set": user.dict()})
+    db.users.update_one({"email": user.email}, {"$set": user.dict()})
     background_tasks.add_task(
         email.send_email, 
         subject="Welcome to Conarbs",
@@ -123,7 +123,6 @@ async def reset_password(request: Request, background_tasks: BackgroundTasks):
     user = User(**user_db)
     user.reset_password_token = token
     user.reset_password_token_expires_at = datetime.utcnow() + timedelta(hours=1)
-    db.users.update_one({"_id": user_db["_id"]}, {"$set": user.dict()})
     db.users.update_one({"email": user.email}, {"$set": user.dict()})
     
     background_tasks.add_task(
@@ -156,9 +155,9 @@ async def reset_password(request: Request, token: str, background_tasks: Backgro
     db.users.update_one({"email": user.email}, {"$set": user.dict()})
 
     background_tasks.add_task(
-        email.send_email, 
+        email.send_email,
         subject="Password Reset Succesful",
-        template="reset_sucess.html",
+        template="reset_success.html",
         context={"username": user.username},
         receiptents=[user.email]
     )

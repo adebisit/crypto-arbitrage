@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Request, HTTPException
+from typing import List, Union
+from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import JSONResponse
-from bson import ObjectId
 from ..utils import payment, token
 from ..models.user import User
-from ..models.payment import Payment, CardAuthorization
+from ..models.payment import Payment, PaymentOut
 from mongodb import db
+from datetime import datetime
 
 
 router = APIRouter()
@@ -26,9 +27,8 @@ async def add_token(request: Request):
             no_tokens= amount
         )
         
-        user_db = db.users.find_one({"email": user.email})
         intialized_payment = Payment(
-            user_id = ObjectId(user_db["_id"]),
+            username = user.username,
             token_tier = str(tier),
             token_pricing = pricing,
             no_tokens = amount,
@@ -41,15 +41,57 @@ async def add_token(request: Request):
         return response
     except Exception as e:
         print(type(e), str(e))
-        raise HTTPException(status_code=500, detail="Could not initialize payment")
+        raise HTTPException(status_code=500, detail="Payment URL failed to Initialize")
     
 
 
 @router.get('/')
 async def get_token_balance(request: Request):
-    return {}
+    user: User = request.state.user    
+    return {
+        "token": user.token
+    }
 
 
-@router.post('/lock')
-async def get_token_balance(request: Request):
-    return {}
+@router.patch('/lock')
+async def lock_token(request: Request):
+    data = await request.json()
+    lock_amount = data.get("lock_amount")
+    if lock_amount is None:
+        raise HTTPException(status_code=400, detail="Missing request body: 'lock_amount'")
+    user: User = request.state.user
+
+    if user.token.available < lock_amount:
+        raise HTTPException(status_code=402, detail="Insufficient Balance.")
+
+    user.token.available -= lock_amount
+    user.token.locked += lock_amount
+    db.users.update_one({"email": user.email}, {"$set": user.dict()})
+    return {"message": f"{lock_amount} conarbs locked."}
+
+
+@router.get('/history')
+async def get_history(
+    request: Request,
+    start: datetime= None,
+    end: datetime = None,
+    tier: str = None,
+    status: str = None,
+    skip: int = Query(0, ge=0, description="No of records to skip"),
+    limit: int = Query(0, ge=0, lt=51, description="No of records to retrieve")
+) -> List[PaymentOut]:
+    user: User = request.state.user
+    queries = [{"username": user.username}]
+
+    if start:
+        queries.append({"timestamp": {"$gt": start}})
+    if end:
+        queries.append({"timestamp": {"$lt": end}})
+    if tier:
+        queries.append({"token_tier": tier.upper()})
+    if status:
+        queries.append({"status": status.lower()})
+    
+    query = {"$and": queries}
+    payments_db = db.payments.find(query).skip(skip).limit(limit)
+    return list(payments_db)

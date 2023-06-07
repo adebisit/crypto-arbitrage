@@ -3,7 +3,7 @@ from bson import ObjectId
 
 
 class Token(BaseModel):
-    user_id: ObjectId
+    username: str
     amount: float
     locked: float = 0.00
     

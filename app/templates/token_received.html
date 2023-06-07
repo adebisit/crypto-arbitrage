@@ -1,0 +1,36 @@
+{% extends 'base.html' %} {% block content %}
+
+<h2>{{no_tokens}} Conarbs added to your account!</h2>
+<p>Dear {{username}},</p>
+<p>Your account was credited with {{no_tokens}} by a transaction intialized by you.</p>
+<br>
+
+<p>Login to your dashboard to manage tokens.</p>
+<table
+  role="presentation"
+  border="0"
+  cellpadding="0"
+  cellspacing="0"
+  class="btn btn-primary"
+>
+  <tbody>
+    <tr>
+      <td align="left">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0">
+          <tbody>
+            <tr>
+              <td>
+                <a href="conarbs.com/tokens/" target="_blank">Manage Tokens</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+<div>Support</div>
+<div>Conarbs</div>
+{% endblock %}

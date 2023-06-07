@@ -32,7 +32,7 @@ async def change_password(request: Request):
     old_password = data.get("old_password")
 
     if not bcrypt.checkpw(old_password.encode(), user.password.encode()):
-        raise HTTPException(detail='Password is wrong', status_code=400)
+        raise HTTPException(detail='Incorrect Password', status_code=400)
     
     new_password = data.get("new_password")
     hashed_password = bcrypt.hashpw(new_password.encode('utf8'), bcrypt.gensalt())

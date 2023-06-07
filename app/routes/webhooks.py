@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request, Response, BackgroundTasks
 import json
 from ..models.payment import CardAuthorization, Payment
 from ..models.user import User
@@ -7,29 +7,22 @@ import hmac
 import hashlib
 from datetime import datetime
 from config import settings
+from ..utils import email
 
 
 router = APIRouter()
 
 
-def verify_paystack_signature(secret_key, payload, signature):
-    computed_signature = hmac.new(secret_key.encode(), payload.encode(), hashlib.sha512).hexdigest()
-    return hmac.compare_digest(computed_signature, signature)
-
-
 @router.post("/payment")
-async def process_payment_webhook(request: Request):
-    payload = await request.json()
-    hash_value = hmac.new(settings.PAYSTACK_SECRET_KEY.encode(), json.dumps(payload).encode(), hashlib.sha512).hexdigest()
-    # print(hash_value)
-    # print(request.headers["x-paystack-signature"])
+async def process_payment_webhook(request: Request, background_tasks: BackgroundTasks):
+    body = await request.body()
     
-    # if hash_value != request.headers["x-paystack-signature"]:
-    #     return Response(status_code=400)
+    hash_value = hmac.new(settings.PAYSTACK_SECRET_KEY.encode('utf-8'), body, hashlib.sha512).hexdigest()
+    if hash_value != request.headers["x-paystack-signature"]:
+        return Response(status_code=401)
 
+    payload = await request.json()
     data = payload["data"]
-    # with open("Test.json", "w+") as fp:
-    #     json.dump(data, fp, indent=4, sort_keys=True)
 
     if payload["event"] == "charge.success":
         reference = data["reference"]
@@ -42,14 +35,23 @@ async def process_payment_webhook(request: Request):
         db.payments.update_one({"reference_id": reference}, {"$set": payment.dict()})
 
         # Get User and update Token
-        user_db = db.users.find_one({"_id": payment.user_id})
+        user_db = db.users.find_one({"username": payment.username})
         user = User(**user_db)
         user.token.available += payment.no_tokens
-        db.users.update_one({"_id": user_db["_id"]}, {"$set": user.dict()})
+        db.users.update_one({"email": user.email}, {"$set": user.dict()})
+
+        # Send Email with update
+        background_tasks.add_task(
+            email.send_email,
+            subject=f"{payment.no_tokens} Tokens Added",
+            template="token_received.html",
+            context={"username": user.username, "no_tokens": payment.no_tokens},
+            receiptents=[user.email]
+        )
 
         # Only do this if user wants to save card or if card isnt saved before.
         card_auth = CardAuthorization(
-            user_id = payment.user_id,
+            username = payment.username,
             authorization_code = data["authorization"]["authorization_code"],
             card_bin = data["authorization"]["bin"],
             brand = data["authorization"]["brand"],

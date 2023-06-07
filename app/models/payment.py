@@ -6,7 +6,7 @@ from pydantic import Field
 
 
 class CardAuthorization(BaseModel):
-    user_id: ObjectId
+    username: str
     authorization_code: str
     brand: str
     card_type: str
@@ -20,7 +20,7 @@ class CardAuthorization(BaseModel):
 
 
 class Payment(BaseModel):
-    user_id: ObjectId
+    username: str
     token_tier: str
     token_pricing: float
     no_tokens: int
@@ -32,3 +32,13 @@ class Payment(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+
+class PaymentOut(BaseModel):
+    token_tier: str
+    token_pricing: float
+    no_tokens: int
+    amount: float
+    timestamp: datetime
+    status: str
+    paid_at: Optional[datetime]
